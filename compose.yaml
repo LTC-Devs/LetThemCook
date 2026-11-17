@@ -1,0 +1,101 @@
+services:
+  database:
+    image: postgres:15-alpine
+    restart: always
+    shm_size: 128mb
+
+    volumes:
+    - database_data:/var/lib/postgresql/data
+
+    ports:
+    - "5432:5432"
+
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  db_migration:
+    image: ltc/backend:latest
+    pull_policy: build
+
+    command: >
+      sh -c "uv run python ./manage.py migrate --noinput && sh -c 'uv run python ./manage.py createsuperuser --noinput || true'"
+    
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_ADMIN_USER}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_ADMIN_EMAIL}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_ADMIN_PASSWORD}
+    
+    depends_on:
+      database:
+        condition: service_healthy
+  
+
+  backend:
+    image: ltc/backend:latest
+    pull_policy: build
+    build:
+      context: backend
+
+    ports:
+    - "8000:8000"
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+
+    depends_on:
+      database:
+        condition: service_healthy
+      db_migration:
+        condition: service_completed_successfully
+    
+    healthcheck:
+      test:
+      - CMD-SHELL 
+      - >-
+      - uv run --no-sync python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+  
+
+  frontend:
+    image: ltc/frontend:latest
+    pull_policy: build
+    build:
+      context: frontend
+    
+    ports:
+    - "3000:3000"
+
+    environment:
+      BACKEND_API_BASE_URL: ${BACKEND_API_BASE_URL}
+    
+    depends_on:
+      backend:
+        condition: service_healthy
+
+
+volumes:
+  database_data:
