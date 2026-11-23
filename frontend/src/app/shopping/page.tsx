@@ -1,11 +1,18 @@
 export const instant = false;
 
-import { fetchShoppingList, fetchUserSession } from "@/lib/mock-api";
+import { getShoppingList } from "@/lib/django";
 import ShoppingClient from "@/components/shopping/ShoppingClient";
 
-export default async function ShoppingPage() {
-  const user = await fetchUserSession();
-  const initialData = await fetchShoppingList();
-  
-  return <ShoppingClient initialData={initialData} user={user} />;
+type Props = { searchParams: Promise<{ recipe?: string }> };
+
+export default async function ShoppingPage({ searchParams }: Props) {
+  const { recipe } = await searchParams;
+  const initialRecipeId = recipe && /^\d+$/.test(recipe) ? recipe : "";
+  try {
+    const items = await getShoppingList();
+    return <ShoppingClient initialData={items} initialRecipeId={initialRecipeId} />;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Błąd pobierania listy zakupów.";
+    return <ShoppingClient initialData={[]} loadError={message} initialRecipeId={initialRecipeId} />;
+  }
 }

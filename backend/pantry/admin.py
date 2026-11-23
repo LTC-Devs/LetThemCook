@@ -5,7 +5,7 @@ from .models import PantryItem
 
 @admin.register(PantryItem)
 class PantryItemAdmin(admin.ModelAdmin):
-    list_display = ("user", "ingredient", "product", "manual_name", "quantity", "unit", "expiry_date", "status")
-    list_filter = ("status", "expiry_date")
-    search_fields = ("manual_name", "ingredient__name", "product__name", "user__username")
-    autocomplete_fields = ("user", "ingredient", "product")
+    list_display = ("user", "product", "amount", "status", "expires_at", "added_at")
+    list_filter = ("status", "expires_at")
+    search_fields = ("product__full_name", "product__ean", "user__username")
+    autocomplete_fields = ("user", "product")

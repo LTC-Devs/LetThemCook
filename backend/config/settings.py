@@ -24,7 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-qee*=ns#6o!@x-*4ox9+u0@*y6nnetpypm8b7jn@%k_1i#ny+-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = environ.get("DJANGO_DEBUG", 0) != 0
+DEBUG = environ.get("DJANGO_DEBUG", "0").lower() in {"1", "true", "yes"}
+# Explicit local-only switch for endpoints with a shared demonstration user.
+LTC_DEMO_MODE = environ.get("LTC_DEMO_MODE", "0").lower() in {"1", "true", "yes"}
 
 ALLOWED_HOSTS = [
 	host.strip()
@@ -43,6 +45,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
+    'pgtrigger',
+    'pghistory',
+    'rest_framework',
     'products.apps.ProductsConfig',
     'recipes.apps.RecipesConfig',
     'users.apps.UsersConfig',
@@ -87,10 +92,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "USER": environ["DB_USER"],
-        "PASSWORD": environ["DB_PASSWORD"],
-        "NAME": environ["DB_NAME"],
-        "HOST": environ["DB_HOST"],
+        "USER": environ.get("DB_USER", ""),
+        "PASSWORD": environ.get("DB_PASSWORD", ""),
+        "NAME": environ.get("DB_NAME", ""),
+        "HOST": environ.get("DB_HOST", ""),
         "PORT": environ.get("DB_PORT", 5432),
     }
 }

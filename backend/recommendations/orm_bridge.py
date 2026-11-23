@@ -61,7 +61,7 @@ def recommend_from_database(user, limit=5, excluded_recipe_ids=None):
     stock = (DBPantryItem.objects.filter(user=user, status=DBPantryItem.Status.AVAILABLE)
              .select_related("ingredient", "product__ingredient"))
     for item in stock:
-        if item.quantity <= 0:
+        if item.amount <= 0:
             continue
         ingredient = item.ingredient or (item.product.ingredient if item.product_id else None)
         name = ingredient.name if ingredient else item.manual_name.strip()

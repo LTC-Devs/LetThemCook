@@ -1,31 +1,30 @@
-FROM node:22-alpine AS dependencies
+FROM node:22-alpine AS build
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+	npm ci --prefer-offline --no-audit --no-fund
 
-FROM node:22-alpine AS build
-WORKDIR /app
-
-COPY --from=dependencies /app/node_modules /app/node_modules
 COPY . .
+RUN --mount=type=cache,target=/app/.next/cache \
+	npm run build
 
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-
-FROM node:22-alpine AS runner
+FROM alpine:3.21 AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+ENV NODE_ENV=production \
+	NEXT_TELEMETRY_DISABLED=1 \
+	PORT=3000 \
+	HOSTNAME=0.0.0.0
 
-RUN addgroup -S -g 1001 unprivileged && \
-	adduser -S -G unprivileged -u 1001 unprivileged
+RUN apk add --no-cache nodejs \
+	&& addgroup -S -g 1001 unprivileged \
+	&& adduser -S -G unprivileged -u 1001 unprivileged
 
-COPY --from=build /app/public /app/public
+COPY --from=build --chown=unprivileged:unprivileged /app/public /app/public
 COPY --from=build --chown=unprivileged:unprivileged /app/.next/standalone /app
 COPY --from=build --chown=unprivileged:unprivileged /app/.next/static /app/.next/static
 

@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DjangoApiError, getRecipe } from "@/lib/django";
-import type { RecipeDetail } from "@/types/recipe-api";
+import type { RecipeDetail, RecipeItem } from "@/types/recipe-api";
+
+const UNITS = { g: "g", ml: "ml", pcs: "szt." };
+
+/** e.g. "śmietana — 2–3 łyżki (30–45 ml)" or "szynka — 100 g" */
+function ingredientLine(item: RecipeItem) {
+  const amount = item.amount === null ? ""
+    : `${Number(item.amount)}${item.amount_max ? `–${Number(item.amount_max)}` : ""} ${UNITS[item.unit]}`;
+  const measure = item.quantity_note && amount ? `${item.quantity_note} (${amount})` : item.quantity_note || amount;
+  return [item.ingredient, measure].filter(Boolean).join(" — ") + (item.is_optional ? " (opcjonalnie)" : "");
+}
 
 
 type Props = { params: Promise<{ id: string }> };
@@ -28,22 +38,21 @@ export default async function RecipeDetailPage({ params }: Props) {
     );
   }
 
-  const ingredientLines = recipe.items.length
-    ? recipe.items.map((item) => item.raw_text || [item.amount, item.unit, item.ingredient].filter(Boolean).join(" "))
-    : recipe.raw_ingredients;
+  const ingredientLines = recipe.items.map(ingredientLine);
 
   return (
     <article className="space-y-7">
       <Link href="/recipes" className="text-sm font-medium text-emerald-800 hover:underline">Wszystkie przepisy</Link>
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold">{recipe.title}</h1>
-        <p className="text-zinc-600">{recipe.category ?? "Bez kategorii"} · {recipe.cookbook ?? "Przepis ogólny"}</p>
-        {recipe.parsing_status !== "verified" && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            Ten przepis nie został jeszcze zweryfikowany po imporcie/OCR.
-          </p>
-        )}
+        <h1 className="text-3xl font-bold">{recipe.name}</h1>
+        <p className="text-zinc-600">
+          {recipe.category ?? "Bez kategorii"}{recipe.base_servings ? ` · porcje: ${recipe.base_servings}` : ""}
+        </p>
       </header>
+      <Link href={`/shopping?recipe=${recipe.id}`}
+        className="inline-block rounded-xl bg-[#C24B36] px-4 py-3 text-white font-semibold">
+        Dodaj przepis do planu zakupów
+      </Link>
       <section className="rounded-xl border border-zinc-200 bg-white p-6">
         <h2 className="mb-3 text-xl font-semibold">Składniki</h2>
         {ingredientLines.length ? (
@@ -54,7 +63,11 @@ export default async function RecipeDetailPage({ params }: Props) {
       </section>
       <section className="rounded-xl border border-zinc-200 bg-white p-6">
         <h2 className="mb-3 text-xl font-semibold">Przygotowanie</h2>
-        <p className="whitespace-pre-wrap text-zinc-700">{recipe.instructions || "Brak instrukcji w bazie."}</p>
+        {recipe.steps.length ? (
+          <ol className="list-decimal space-y-2 pl-5 text-zinc-700">
+            {recipe.steps.map((step, index) => <li key={index}>{step}</li>)}
+          </ol>
+        ) : <p className="text-zinc-600">Brak instrukcji w bazie.</p>}
       </section>
     </article>
   );

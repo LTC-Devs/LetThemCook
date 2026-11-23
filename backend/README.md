@@ -16,13 +16,12 @@ cd backend/
 uv sync  
 ```
 
-### Local database 
+### Local database (for tests)
 Quick start:
+add environment variables from [env template](template.env), then run:
 ```sh
-docker compose -f ../compose.yaml up database -d
+docker compose -f test-db/compose.yaml up database -d
 ```
-
-Database connection is configured under `DATABASES` in [server settings](config/settings.py).
 
 #### Database connection
 The connection details for the database are stored in the .env file, which python on its own does not read by default.
@@ -33,10 +32,10 @@ Set up the .env file with:
 cp template.env .env
 ```
 
-Populate the database with sample product names using [this script](products/management/commands/seed_products.py):
+## Updating db
+with current migrations
 ```sh
-python manage.py migrate # initialize schema
-python manage.py seed_products
+python manage.py migrate
 ```
 
 ## Running the server
@@ -45,59 +44,41 @@ python manage.py runserver
 ```
 
 ## Endpoints
+**TODO** - require updating with new models
 
-### EAN product lookup
-- **Route**: `GET .../lookup/?ean=<barcode>`
--  **Description**: Takes a product barcode (EAN), fetches product metadata from the external OpenFoodFacts API, and searches the local database for matching products using fuzzy name matching (`TrigramSearch`).
-    - **NOTE**: Open Food Facts lookup API has rate limits of 15 requests/min, avoid spamming the API and preferably setup contact info (e.g. email) in env variable `USER_CONTACT`; it is used in `User-Agent` header for identification ([See their API docs](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/#authentication))
+## Admin panel access
+Aby wejść do panelu administratora Django (Django Admin):
 
-#### Responses
-- `200 OK`: Returns JSON with the ean, raw upstream_data, and a list of up to 5 local matches (id, data).
-- `400 Bad Request`: EAN is missing, non-digit, or not between 8 and 14 characters.
-- `404 Not Found`: EAN was not found in OpenFoodFacts.
-- `502 Bad Gateway`: OpenFoodFacts API request failed or timed out.
-
-#### Example response
-```json
-{
-  "ean": "5900820000042",
-  "upstream_data": {
-    "product_name": "Mleko UHT 2%",
-    "product_name_pl": "Łaciate UHT 2%",
-    "generic_name_pl": "Mleko",
-    "generic_name": "",
-    "brands": "Mlekpol, Łaciate",
-    "pnns_groups_2": "Milk and yogurt",
-    "categories_tags": [
-      "en:dairies",
-      "en:milks-liquid-and-powder",
-      "en:milks",
-       ...
-    ]
-  },
-  "matches": [
-    {
-      "id": 1,
-      "data": "Mleko chude"
-    },
-    {
-      "id": 6,
-      "data": "Mleko bez laktozy"
-    }
-  ]
-}
+Make sure migrations are applied
+```powershell
+python manage.py migrate
 ```
+
+Create superuser account (if it is not present)
+```
+python manage.py createsuperuser
+```
+Email can be left empty.
+
+Run dev server
+```
+python manage.py runserver
+```
+
+Open the admin panel in browser:
+-> **[http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)** *(or `http://localhost:8000/admin/`)*
+
+Log in with superuser credentials from step 2.
 
 ## LTC database (Django ORM)
 
 The models for recipes, users, pantry, recommendations and shopping are in their
-respective Django apps. Recipe JSON has not been imported.
+respective Django apps. Data import to be implemented.
 
 See [docs/DATABASE.md](../docs/DATABASE.md) for schema and setup.
 
 ## Monorepo note
 
-This README belongs to `backend/`. Start PostgreSQL **from repository root** with
-`docker compose -f database/compose.yml up -d`, then run the Django commands
-**from `backend/`** (`uv sync`, `uv run python manage.py migrate`, and so on).
+This README belongs to `backend/`. Start test PostgreSQL `docker compose -f test-db/compose.yml up -d`, then run the Django commands
+**in `backend/`** (`uv sync`, `uv run python manage.py migrate`, and so on).
 For current paths and the complete setup, see [`../README.md`](../README.md).

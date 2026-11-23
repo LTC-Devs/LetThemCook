@@ -25,10 +25,9 @@ services:
 
   db_migration:
     image: ltc/backend:latest
-    pull_policy: build
 
     command: >
-      sh -c "uv run python ./manage.py migrate --noinput && sh -c 'uv run python ./manage.py createsuperuser --noinput || true'"
+      sh -c "python ./manage.py migrate --noinput && sh -c 'python ./manage.py createsuperuser --noinput || true'"
     
     environment:
       DB_HOST: ${DB_HOST}
@@ -47,7 +46,6 @@ services:
 
   backend:
     image: ltc/backend:latest
-    pull_policy: build
     build:
       context: backend
 
@@ -62,6 +60,7 @@ services:
       DB_NAME: ${DB_NAME}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      LTC_DEMO_MODE: ${LTC_DEMO_MODE}
 
     depends_on:
       database:
@@ -73,16 +72,15 @@ services:
       test:
       - CMD-SHELL 
       - >-
-      - uv run --no-sync python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"
+      - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 5s
   
 
   frontend:
     image: ltc/frontend:latest
-    pull_policy: build
     build:
       context: frontend
     
@@ -96,6 +94,12 @@ services:
       backend:
         condition: service_healthy
 
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
 volumes:
   database_data:

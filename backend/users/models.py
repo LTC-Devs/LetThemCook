@@ -2,29 +2,40 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from recipes.models import Allergen, Diet, Ingredient
 
-
-class UserPreferences(models.Model):
-    class MeasurementSystem(models.TextChoices):
-        METRIC = "metric", "Metric"
-        IMPERIAL = "imperial", "Imperial"
-
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="food_preferences")
-    household_size = models.PositiveSmallIntegerField(default=1)
-    measurement_system = models.CharField(
-        max_length=10, choices=MeasurementSystem.choices, default=MeasurementSystem.METRIC
-    )
-    allergies = models.ManyToManyField(Allergen, blank=True, related_name="user_preferences")
-    required_diets = models.ManyToManyField(Diet, blank=True, related_name="user_preferences")
-    excluded_ingredients = models.ManyToManyField(Ingredient, blank=True, related_name="excluded_by_users")
-    liked_ingredients = models.ManyToManyField(Ingredient, blank=True, related_name="liked_by_users")
-    disliked_ingredients = models.ManyToManyField(Ingredient, blank=True, related_name="disliked_by_users")
+class UserSettings(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True, related_name="settings")
+    default_servings = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         constraints = [
-            models.CheckConstraint(condition=Q(household_size__gte=1), name="household_size_positive"),
+            models.CheckConstraint(condition=Q(default_servings__gte=1), name="default_servings_positive"),
         ]
 
     def __str__(self):
-        return f"Food preferences: {self.user}"
+        return f"Settings: {self.user}"
+
+class UserFeaturePref(models.Model):
+    class Level(models.TextChoices):
+        DISLIKE = "dislike", "Dislike"
+        AVOID = "avoid", "Avoid"
+        ALLERGY = "allergy", "Allergy / Strict"
+        PREFER = "prefer", "Prefer"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feature_preferences",
+    )
+    feature = models.ForeignKey(
+        "recipes.IngredientFeature",
+        on_delete=models.CASCADE,
+        related_name="user_preferences",
+    )
+    level = models.CharField(max_length=30, choices=Level.choices, default=Level.AVOID)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "feature"], name="unique_user_feature_pref")
+        ]
+    def __str__(self):
+        return f"{self.user}: {self.feature} ({self.level})"

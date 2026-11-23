@@ -1,10 +1,18 @@
 from django.contrib import admin
 
-from .models import UserPreferences
+from .models import UserFeaturePref, UserSettings
 
 
-@admin.register(UserPreferences)
-class UserPreferencesAdmin(admin.ModelAdmin):
-    list_display = ("user", "household_size", "measurement_system")
+@admin.register(UserSettings)
+class UserSettingsAdmin(admin.ModelAdmin):
+    list_display = ("user", "default_servings")
     search_fields = ("user__username",)
-    filter_horizontal = ("allergies", "required_diets", "excluded_ingredients", "liked_ingredients", "disliked_ingredients")
+    autocomplete_fields = ("user",)
+
+
+@admin.register(UserFeaturePref)
+class UserFeaturePrefAdmin(admin.ModelAdmin):
+    list_display = ("user", "feature", "level")
+    list_filter = ("level",)
+    search_fields = ("user__username", "feature__name")
+    autocomplete_fields = ("user", "feature")

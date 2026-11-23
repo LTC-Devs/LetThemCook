@@ -33,7 +33,7 @@ export default async function RecipesPage({ searchParams }: Props) {
         <label htmlFor="recipe-query" className="sr-only">Szukaj przepisu</label>
         <input
           id="recipe-query" type="search" name="q" defaultValue={q}
-          placeholder="Wpisz nazwę przepisu"
+          placeholder="Szukaj po nazwie lub składniku"
           className="w-full max-w-md rounded-lg border border-zinc-300 bg-white px-3 py-2"
         />
         <button type="submit" className="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white">Szukaj</button>
@@ -55,13 +55,9 @@ export default async function RecipesPage({ searchParams }: Props) {
             {data?.results.map((recipe) => (
               <li key={recipe.id} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
                 <Link href={`/recipes/${recipe.id}`} className="text-lg font-semibold text-emerald-800 hover:underline">
-                  {recipe.title}
+                  {recipe.name}
                 </Link>
                 <p className="mt-2 text-sm text-zinc-600">{recipe.category ?? "Bez kategorii"}</p>
-                <p className="mt-1 text-xs text-zinc-500">{recipe.cookbook ?? "Przepis ogólny"}</p>
-                {recipe.parsing_status !== "verified" && (
-                  <p className="mt-3 text-xs text-amber-700">Przepis niezweryfikowany</p>
-                )}
               </li>
             ))}
           </ul>

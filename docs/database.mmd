@@ -1,0 +1,114 @@
+erDiagram
+    User {
+        int id PK
+    }
+
+    UserSettings {
+        int user_id PK, FK
+        int default_servings
+    }
+
+    Ingredient {
+        int id PK
+        string canonical_name
+        string base_unit
+    }
+
+    IngredientFeature {
+        int id PK
+        string name "lactose, vegan etc."
+        string kind "allergen / diet"
+    }
+
+    Category {
+        int id PK
+        string name "e.g. Kisiele"
+        int parent_id FK "optional"
+    }
+
+    UserFeaturePref {
+        int id PK
+        int user_id FK
+        int feature_id FK
+        string level
+    }
+
+    Product {
+        int id PK
+        int ingredient_id FK "mapping to normalised"
+        string ean "optional"
+        string full_name "e.g. Mleko Mlekovita 3.2% 1L"
+        string package_amount "1L"
+        float normalised_amount "1000 - unit from ingredient"
+    }
+
+    PantryItem {
+        int id PK
+        int user_id FK
+        int product_id FK
+        float amount "unit from ingredient"
+        string status "available / consumed / discarded"
+        datetime added_at
+        datetime expires_at
+        datetime finished_at
+        pghistory history "keeping status update history"
+    }
+
+    Recipe {
+        int id PK
+        int owner_id FK
+        int category_id FK "optional"
+        string name
+        int base_servings "optional"
+        json steps
+    }
+
+    RecipeItem {
+        int id PK
+        int recipe_id FK
+        int ingredient_id FK
+        float amount "optional, empty for `sól do smaku`"
+        float amount_max "optional, upper range end (4-5 łyżek)"
+        string quantity_note
+        string group "optional, e.g. sos musztardowy"
+        string alternative_group "optional"
+        boolean is_optional
+    }
+
+    RecipeRating {
+        int id PK
+        int user_id FK
+        int recipe_id FK
+        int rating
+    }
+
+    PlannedMeal {
+        int id PK
+        int user_id FK
+        int recipe_id FK
+        int servings
+        date planned_for
+        datetime proposed_at
+        string status
+        pghistory history "history table updated at `status` change"
+    }
+
+    User ||--|| UserSettings : configures
+    User ||--o{ PantryItem : owns
+    User ||--o{ PlannedMeal : plans
+    User |o--o{ Recipe : owns
+    User ||--o{ UserFeaturePref : prefers
+    User ||--o{ RecipeRating : prefers
+
+    IngredientFeature ||--o{ UserFeaturePref : "preferred as"
+    Ingredient }o--o{ IngredientFeature : has
+
+    Ingredient ||--o{ Product : "maps to"
+    Product ||--o{ PantryItem : "stocked as"
+
+    Recipe ||--o{ RecipeItem : contains
+    Ingredient ||--o{ RecipeItem : "used in"
+    Recipe ||--o{ RecipeRating : "rated by"
+    Recipe ||--o{ PlannedMeal : uses
+    Category |o--o{ Category : "parent"
+    Category ||--o{ Recipe : "category"

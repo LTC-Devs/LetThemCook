@@ -20,7 +20,11 @@ from .health import healthz
 
 urlpatterns = [
     path("api/recipes/", include("recipes.urls")),
+    path("api/recommendations/", include("recommendations.urls")),
     path('admin/', admin.site.urls),
     path("api/products/", include("products.urls")),
+    path("api/shopping/", include("shopping.urls")),
+    path("api/pantry/", include("pantry.urls")),
+    path("api-auth/", include("rest_framework.urls")),
 	path("healthz", healthz)
 ]

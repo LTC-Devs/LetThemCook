@@ -8,7 +8,7 @@ from django.utils import timezone
 from pantry.models import PantryItem
 from recipes.models import Allergen, Diet, Ingredient, Recipe, RecipeItem
 from users.models import UserPreferences
-from .models import CookingHistory, MealPlan, PlannedMeal, RecipeFeedback
+from .models import CookingHistory, PlannedMeal, PlannedMeal, RecipeFeedback
 from .orm_bridge import recommend_from_database
 
 
@@ -55,7 +55,7 @@ class RecommendationsORMTests(TestCase):
         RecipeFeedback.objects.create(user=self.user, recipe=recipe, value=RecipeFeedback.Value.LIKE)
         CookingHistory.objects.create(user=self.user, recipe=recipe, cooked_at=timezone.now())
         today = timezone.localdate()
-        plan = MealPlan.objects.create(user=self.user, start_date=today, end_date=today+timedelta(days=7))
+        plan = PlannedMeal.objects.create(user=self.user, start_date=today, end_date=today+timedelta(days=7))
         planned = PlannedMeal.objects.create(plan=plan, recipe=recipe, planned_for=today, servings=2)
         self.assertEqual(self.user.recipe_feedback.count(), 1)
         self.assertEqual(self.user.cooking_history.count(), 1)

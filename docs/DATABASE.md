@@ -1,77 +1,52 @@
+>**UPDATE model v3** (feat/database-diagram): modele zgodne z nowym diagramem — `Recipe.name`, `base_servings`, bez `source_number`, bez `Cookbook`; `RecipeItem.quantity_note` zamiast `position`/`raw_text`/`comment`; `UserSettings` (`default_servings`, klucz `user_id`) zamiast `UserPreferences`; `PantryItem.expires_at`; bez `PlannedMeal.meal_type` i `RecipeRating.updated_at`.
+
+>**UPDATE model v2** (feat/database), w skrócie: usunięcie shopping listy, diety/ alergeny teraz w jednym `IngredientFeature` (`kind`: diet / allergen etc.), bezpośrednie plany posiłków `user <-> PlannedMeal`
+
+
 > **Po reorganizacji:** pliki modeli i migracji są w `backend/`, konfiguracja PostgreSQL w `database/compose.yml`. Polecenia uruchomieniowe opisuje [README](../README.md).
 
 # LTC — schemat Django ORM (Kuchnia Polska, wydanie 1985)
 
-Rozwinięcie brancha `feature/recommender`. Zawiera modele i migracje,
-bez importowania danych z pliku `recipes(1).json` i bez zmiany obecnego prototypu
-rekomendacji (`recommender_prototype/`). Bieżący endpoint produktów nadal działa
-na istniejącym `products.Product`.
-
-
-## Diagram relacji
-
-```mermaid
-erDiagram
-    Cookbook ||--o{ Recipe : source
-    Category ||--o{ Category : parent
-    Category ||--o{ Recipe : groups
-    User ||--o{ Recipe : owns
-    Recipe ||--o{ RecipeItem : contains
-    Ingredient ||--o{ RecipeItem : identifies
-    Recipe ||--o{ RecipeItem : nested_recipe
-    Ingredient }o--o{ Allergen : contains
-    Ingredient }o--o{ DietCategory : classified_as
-    Diet }o--o{ DietCategory : excludes
-    Recipe }o--o{ Diet : verified_labels
-    Ingredient ||--o{ Substitution : original
-    Ingredient ||--o{ Substitution : replacement
-    Ingredient ||--o{ Product : canonical_ingredient
-    User ||--o| UserPreferences : has
-    User ||--o{ PantryItem : owns
-    Ingredient ||--o{ PantryItem : represents
-    Product ||--o{ PantryItem : scanned_as
-    User ||--o{ RecipeFeedback : rates
-    Recipe ||--o{ RecipeFeedback : receives
-    User ||--o{ CookingHistory : cooks
-    Recipe ||--o{ CookingHistory : cooked
-    User ||--o{ MealPlan : creates
-    MealPlan ||--o{ PlannedMeal : schedules
-    Recipe ||--o{ PlannedMeal : planned
-    User ||--o{ ShoppingList : owns
-    MealPlan ||--o{ ShoppingList : feeds
-    ShoppingList ||--o{ ShoppingListItem : contains
-    Ingredient ||--o{ ShoppingListItem : identified_as
-    RecipeItem ||--o{ ShoppingListItem : source
+Rozwinięcie brancha `master`.  Endpointy i serwisy wymagają aktualizacji do obecnych migracji.
+## Aktualizowanie struktur bazy
+po odpaleniu testowej, więcej w README
+### Aplikowanie obecnych migracji (sub_app/migrations/)
+```sh
+uv run python manage.py migrate
+```
+### Generowanie kodu migracji (po zmianie modeli)
+```sh
+uv run python manage.py makemigrations
 ```
 
-`User` oznacza standardowy model Django, wskazywany w kodzie przez
-`settings.AUTH_USER_MODEL`. Relacje M:N, np. `Ingredient.allergens`, Django
-realizuje za pomocą tabel pośrednich.
+## Model
+### Diagram modelu
+
+![DB physical model](database.png)
+mermaid: [database.mmd](database.mmd)
+
+`User` oznacza standardowy model Django, wskazywany w kodzie przez `settings.AUTH_USER_MODEL`. Relacje M:N są realizowane przez tabele pośrednie
 
 
-## Diety i alergie
+### Diety i alergie
 
-- `Ingredient.allergens` jest relacją do poznanych alergenów; brak wpisu nie
-  oznacza potwierdzonego braku alergenu.
-- `DietCategory` określa cechy składników, np. mięso, jaja, nabiał; `Diet`
-  definiuje wykluczone kategorie (np. dla weganizmu).
-- `Recipe.diets` przechowuje zweryfikowane etykiety przepisów. Nie nadajemy
-  ich na podstawie samego tytułu czy niepoprawionych danych OCR.
-- `Substitution` ma relację składnik → zamiennik i dodatni współczynnik
-  ilościowy `ratio`; rzeczywista zgodność dietetyczna zamiennika wciąż wymaga
-  sprawdzenia alergenów.
+**IngredientFeature**
+- `kind`: diet/ allergen etc.
+- `name`
 
+**UserFeaturePref**
+- `level`: dislike / avoid / allergy / prefer
 
-## Partie spiżarni i sklep
+Do składników przypisywane jest wiele features, użytkownik może mieć preferencje ustawione dla każdego feature wg. `level`.
+### Partie spiżarni i sklep
 
-`PantryItem` reprezentuje partię konkretnego zapasu. Dwa opakowania mleka
-mogą mieć różne daty ważności. Status `available`, `consumed` lub `discarded`
-pozwala przechować historię zakończonych partii. Ilości są dziesiętne,
-jednostka (`g`, `kg`, `ml`, `szt.`, `łyżka`, itd.) jest jawna i nie ma automatycznego
-przeliczania między rodzajami jednostek. `ShoppingListItem` może wskazywać
-`RecipeItem`, więc wiadomo, skąd pochodzi zapotrzebowanie.
+`PantryItem` reprezentuje partię konkretnego zapasu powiązaną z produktem (`Product`), wskazującym na kanoniczny składnik (`Ingredient`). Dwa opakowania mogą mieć różne daty ważności (`expires_at`). Zmiany statusu (`available`, `consumed`, `discarded`) są automatycznie wersjonowane za pomocą `pghistory`. Ilość (`amount`) zapisywana jest dziesiętnie w jednostce bazowej składnika (`product.ingredient.base_unit`: `g`, `ml`, `pcs`).
 
+>UWAGA: obecnie jest możliwość dodania tylko jednego produktu per ingredient bez podania ean - z założenia ma być unikalnym łącznikiem PantryItem <-> ingredient gdy nie ma danych produktu sklepowego
 
+W module zakupów (`shopping`) nie ma osobnych tabel (np. `ShoppingListItem`) - lista zakupów będzie wyliczana dynamicznie jako różnica zapotrzebowania z zaplanowanych posiłków i dostępnych stanów spiżarni (`SUM(posiłki) - SUM(spiżarnia status=available)`).
+
+# OUTDATED
 ## Integracja z prototypem
 
 ```python
@@ -107,17 +82,17 @@ Panel administratora: `http://127.0.0.1:8000/admin/`.
 Test w Django shell (`uv run python manage.py shell`):
 
 ```python
-from recipes.models import Cookbook, Category, Recipe, RecipeItem
-book, _ = Cookbook.objects.get_or_create(title="Kuchnia Polska", edition_year=1985)
+from recipes.models import Category, Ingredient, Recipe, RecipeItem
 section, _ = Category.objects.get_or_create(name="PRZEKĄSKI ZIMNE I GORĄCE", parent=None)
 subsection, _ = Category.objects.get_or_create(name="Kanapki", parent=section)
 recipe = Recipe.objects.create(
-    title="Kanapki z szynką", cookbook=book, category=subsection,
-    source_number=1, instructions="Przepis do weryfikacji",
-    raw_ingredients=["10 dkg szynki", "2—3 łyżki śmietany"],
+    name="Kanapki z szynką", category=subsection, base_servings=4,
+    steps=["Przygotować pieczywo.", "Jajo obrać, pokrajać wzdłuż na cząstki."],
 )
-for n, line in enumerate(recipe.raw_ingredients, start=1):
-    RecipeItem.objects.create(recipe=recipe, position=n, raw_text=line)
+ham, _ = Ingredient.objects.get_or_create(canonical_name="szynka", defaults={"base_unit": "g"})
+cream, _ = Ingredient.objects.get_or_create(canonical_name="śmietana", defaults={"base_unit": "ml"})
+RecipeItem.objects.create(recipe=recipe, ingredient=ham, amount=100)
+RecipeItem.objects.create(recipe=recipe, ingredient=cream, amount=30, amount_max=45, quantity_note="2–3 łyżki")
 ```
 
 Migracja `recipes.0002_cookbook_1985` tworzy tylko rekord źródła

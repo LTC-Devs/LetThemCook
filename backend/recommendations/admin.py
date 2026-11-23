@@ -1,31 +1,19 @@
 from django.contrib import admin
 
-from .models import CookingHistory, MealPlan, PlannedMeal, RecipeFeedback
+from .models import PlannedMeal, RecipeRating
 
 
-class PlannedMealInline(admin.TabularInline):
-    model = PlannedMeal
-    extra = 0
-    autocomplete_fields = ("recipe",)
-
-
-@admin.register(MealPlan)
-class MealPlanAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "start_date", "end_date")
-    search_fields = ("title", "user__username")
-    list_filter = ("start_date",)
-    autocomplete_fields = ("user",)
-    inlines = (PlannedMealInline,)
-
-
-@admin.register(RecipeFeedback)
-class RecipeFeedbackAdmin(admin.ModelAdmin):
-    list_display = ("user", "recipe", "value", "updated_at")
-    list_filter = ("value",)
+@admin.register(PlannedMeal)
+class PlannedMealAdmin(admin.ModelAdmin):
+    list_display = ("user", "recipe", "planned_for", "servings", "status", "proposed_at")
+    list_filter = ("status", "planned_for")
+    search_fields = ("user__username", "recipe__name")
     autocomplete_fields = ("user", "recipe")
 
 
-@admin.register(CookingHistory)
-class CookingHistoryAdmin(admin.ModelAdmin):
-    list_display = ("user", "recipe", "cooked_at", "servings")
+@admin.register(RecipeRating)
+class RecipeRatingAdmin(admin.ModelAdmin):
+    list_display = ("user", "recipe", "rating")
+    list_filter = ("rating",)
+    search_fields = ("user__username", "recipe__name")
     autocomplete_fields = ("user", "recipe")

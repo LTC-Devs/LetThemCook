@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from recipes.models import Ingredient, Recipe, RecipeItem
-from .models import ShoppingList, ShoppingListItem
+from .repository import ShoppingList, ShoppingListItem
 
 
 class ShoppingTests(TestCase):
